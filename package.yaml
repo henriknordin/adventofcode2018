@@ -1,0 +1,52 @@
+name:                adventofcode2018
+version:             0.1.0.0
+github:              "henriknordin/adventofcode2018"
+license:             BSD3
+author:              "Henrik Nordin"
+maintainer:          "nordhenr@gmail.com"
+copyright:           "2018 Henrik Nordin"
+
+extra-source-files:
+- README.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/henriknordin/adventofcode2018#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+- optparse-applicative
+- containers
+- megaparsec
+
+library:
+  source-dirs: src
+
+executables:
+  adventofcode2018-exe:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -O2
+    - -Wall
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - adventofcode2018
+
+tests:
+  adventofcode2018-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - adventofcode2018
