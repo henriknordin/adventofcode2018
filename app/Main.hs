@@ -6,7 +6,7 @@ import           Data.Semigroup      ((<>))
 import           Options.Applicative
 
 import           Advent01            (advent01)
---import           Advent02 (advent02)
+import           Advent02            (advent02)
 --import           Advent03 (advent03)
 --import           Advent04 (advent04)
 --import           Advent05 (advent05)
@@ -35,7 +35,7 @@ import           Advent01            (advent01)
 days :: IntMap.IntMap (IO ())
 days = IntMap.fromList
   [ ( 1, advent01)
---  , ( 2, advent02)
+  , ( 2, advent02)
 --  , ( 3, advent03)
 --  , ( 4, advent04)
 --  , ( 5, advent05)
