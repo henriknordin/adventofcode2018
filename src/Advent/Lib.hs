@@ -2,6 +2,7 @@ module Advent.Lib
     ( getInput
     , Parser
     , parseWith
+    , parseStringWith
     , combinations
     , applyN
     ) where
@@ -26,6 +27,16 @@ parseWith p day = runParser p filepath <$> input >>= either report return
   where
     filepath = printf "data/input%02d.txt" day
     input = readFile filepath
+    report e = fail (parseErrorPretty e)
+
+-- | Parse some file. Will print a pretty error message if it fails
+parseStringWith :: Parser a -- ^ The input data parser
+                -> IO String   -- ^ The number of the day that should be parsed
+                -> IO a     -- ^ The parsed result
+parseStringWith p day = runParser p "" <$> day >>= either report return
+  where
+    --filepath = printf "data/input%02d.txt" day
+    --input = readFile filepath
     report e = fail (parseErrorPretty e)
 
 combinations :: Integer -> [a] -> [[a]]

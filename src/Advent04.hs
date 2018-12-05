@@ -4,87 +4,64 @@ module Advent04
   ( advent04
   ) where
 
-import           Data.Char                  (isDigit)
 import           Data.List
 import qualified Data.Map.Strict            as Map
 import           Data.Maybe                 (fromJust, isJust)
 import           Data.Ord                   (comparing)
 
-import           Text.Megaparsec            (eof, someTill)
-import           Text.Megaparsec.Char       (eol)
+import           Text.Megaparsec            (eof, many, someTill, try)
+import           Text.Megaparsec.Char       (char, eol)
 import qualified Text.Megaparsec.Char.Lexer as L (charLiteral, decimal)
 
-import           Advent.Lib                 (Parser, parseWith)
+import           Advent.Lib                 (Parser, getInput, parseStringWith)
 
--- [1518-11-05 00:03] Guard #99 begins shift
--- [1518-11-05 00:45] falls asleep
--- [1518-11-05 00:55] wakes up
 
-data Timestamp = Timestamp
-  { tYear  :: Int
-  , tMonth :: Int
-  , tDay   :: Int
-  , tHour  :: Int
-  , tMin   :: Int
-  } deriving (Show, Eq, Ord)
-
-data Obs = Obs
-  { obsTimestamp :: Timestamp
-  , obsNote      :: String
-  } deriving (Show, Eq, Ord)
-
-data GuardObs = GuardObs
-  { gId    :: String
-  , gSleep :: [Int]
+data GuardDuty = GuardDuty
+  { gId    :: Int
+  , gSleep :: [(Int, Int)] -- Interval the guard sleeps
   } deriving Show
 
-obsesParser :: Parser [Obs]
-obsesParser = do
-  obses <- someTill obsParser eof
-  pure obses
+dutiesParser :: Parser [GuardDuty]
+dutiesParser = do
+  duties <- someTill dutyParser eof
+  pure duties
   where
-    obsParser :: Parser Obs
-    obsParser = do
-      --obsTimestamp <- "[" *> someTill L.charLiteral "]"
-      obsTimestamp <- timestampParser
-      obsNote <- " " *> someTill L.charLiteral eol
-      pure Obs {..}
-    timestampParser :: Parser Timestamp
-    timestampParser = do
-      tYear <- "[" *> L.decimal
-      tMonth <- "-" *> L.decimal
-      tDay <- "-" *> L.decimal
-      tHour <- " " *> L.decimal
-      tMin <- ":" *> L.decimal <* "]"
-      pure Timestamp {..}
+    dutyParser :: Parser GuardDuty
+    dutyParser = do
+      gId <- someTill L.charLiteral (char '#') *> L.decimal <* someTill L.charLiteral eol
+      gSleep <- many (try intervalParser)
+      pure GuardDuty {..}
+    intervalParser :: Parser (Int, Int)
+    intervalParser = do
+      -- TODO Can we have an eal at the below two lines instead?
+      a <- someTill L.charLiteral ":" *> L.decimal <* "] falls asleep\n"
+      b <- someTill L.charLiteral ":" *> L.decimal <* "] wakes up\n"
+      pure (a, b)
 
-parseGuardObs :: [Obs] -> [GuardObs]
-parseGuardObs [] = []
-parseGuardObs (x:xs) = let (ys, zs) = span ((not . isSubsequenceOf "Guard") . obsNote) xs
-                       in GuardObs (obsNote x) (sleep ys) : parseGuardObs zs
 
-sleep :: [Obs] -> [Int]
-sleep []       = []
-sleep [_]      = []
-sleep (a:b:xs) = [(tMin $ obsTimestamp a)..(tMin (obsTimestamp b) - 1)] ++ sleep xs
-
-answer1 :: [GuardObs] -> Int
-answer1 xs = let sleepPattern = concatMap (\(GuardObs _ l) -> l) $ filter (\g -> gId g == mostSleepyGuard) xs
+answer1 :: [GuardDuty] -> Int
+answer1 xs = let sleepPattern = concatMap (\(GuardDuty _ l) -> createList l) $ filter (\g -> gId g == mostSleepyGuard) xs
                  maxMinute = getMostFrequent sleepPattern
-              in getNumericId mostSleepyGuard * fst (fromJust maxMinute)
+              in mostSleepyGuard * fst (fromJust maxMinute)
   where
-    totalSleepByGuards = foldl' (\b a -> Map.insertWith (+) (gId a) (sum $ gSleep a) b) Map.empty xs
+    totalSleepByGuards :: Map.Map Int Int
+    totalSleepByGuards = foldl' (\b a -> Map.insertWith (+) (gId a) (timeAsleep $ gSleep a) b) Map.empty xs
     mostSleepyGuard = fst $ maximumBy (comparing snd) $ Map.assocs totalSleepByGuards
 
-
-getNumericId :: String -> Int
-getNumericId = read . filter isDigit
-
-answer2 :: [GuardObs] -> Int
-answer2 xs = let sleepByGuards = foldl' (\b a -> Map.insertWith (++) (gId a) (gSleep a) b) Map.empty xs
+answer2 :: [GuardDuty] -> Int
+answer2 xs = let sleepByGuards = foldl' (\b a -> Map.insertWith (++) (gId a) (createList $ gSleep a) b) Map.empty xs
                  sleepByGuardsMost = map (\(k, v) -> let qs = getMostFrequent v in (k, qs)) $ Map.assocs sleepByGuards
                  sleepGuard = maximumBy (comparing (snd . snd)) $ map (\(k, v) -> (k, fromJust v)) $ filter (isJust . snd) sleepByGuardsMost
-              in getNumericId (fst sleepGuard) * fst (snd sleepGuard)
+              in fst sleepGuard * fst (snd sleepGuard)
+
+
+timeAsleep :: [(Int, Int)] -> Int
+timeAsleep []         = 0
+timeAsleep ((a,b):xs) = (b - a - 1) + timeAsleep xs
+
+createList :: [(Int, Int)] -> [Int]
+createList []         = []
+createList ((a,b):xs) = [a..(b-1)] ++ createList xs
 
 getMostFrequent :: [Int] -> Maybe (Int, Int)
 getMostFrequent [] = Nothing
@@ -92,10 +69,11 @@ getMostFrequent xs = Just (head ys, length ys)
   where
     ys = (maximumBy (comparing length) . group . sort) xs
 
+parseInput :: String -> String
+parseInput = unlines . sort . lines
+
 advent04 :: IO ()
 advent04 = do
-  obses <- parseWith obsesParser 04
-  let guardObses = parseGuardObs (sortOn obsTimestamp obses)
-
-  putStrLn $ "Advent 04-1: " ++ show (answer1 guardObses) -- 98680
-  putStrLn $ "Advent 04-2: " ++ show (answer2 guardObses) -- 9763
+  input <- parseStringWith dutiesParser (parseInput <$> getInput 04)
+  putStrLn $ "Advent 04-1: " ++ show (answer1 input) -- 98680
+  putStrLn $ "Advent 04-2: " ++ show (answer2 input) -- 9763
